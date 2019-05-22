@@ -18,7 +18,7 @@ class User(Base):
     id = Column(Integer, primary_key = True)
     username = Column(String(20), server_default = 'DB Admin', nullable = False)
     email = Column(String(120), nullable = False, index = True, unique = True)
-
+    picture = Column(String(250))
     @property
     def serialize(self):
         return {

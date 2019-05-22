@@ -13,15 +13,22 @@ import httplib2
 import json
 from flask import make_response
 import requests
-from glogin import Google_connect 
-import database_interaction
+from glogin import *
 
 app = Flask(__name__)
 
 
-g_connect =Google_connect()
-db = database_interaction.Database_interaction()
-session = db.session 
+CLIENT_ID = json.loads(
+    open('client_secrets.json', 'r').read())['web']['client_id']
+APPLICATION_NAME = "Item Catalog Application"
+
+
+# Connect to Database and create database session
+engine = create_engine('sqlite:///ItemCatalog.db',connect_args={'check_same_thread': False})
+Base.metadata.bind = engine
+
+DBSession = sessionmaker(bind=engine)
+session = DBSession()
 
 
 # Login required decorator
@@ -34,6 +41,35 @@ def login_required(f):
     return decorated_function
 
 
+# --------------------------------------
+# JSON APIs to show Catalog information
+# --------------------------------------
+@app.route('/api/v1/catalog.json')
+def showCatalogJSON():
+    """Returns JSON of all items in catalog"""
+    items = session.query(CatalogItem).order_by(CatalogItem.id.desc())
+    return jsonify(CatalogItems=[i.serialize for i in items])
+
+
+@app.route(
+    '/api/v1/categories/<int:category_id>/item/<int:catalog_item_id>/JSON')
+def catalogItemJSON(category_id, catalog_item_id):
+    """Returns JSON of selected item in catalog"""
+    Catalog_Item = session.query(
+        CatalogItem).filter_by(id=catalog_item_id).one()
+    return jsonify(Catalog_Item=Catalog_Item.serialize)
+
+
+@app.route('/api/v1/categories/JSON')
+def categoriesJSON():
+    """Returns JSON of all categories in catalog"""
+    categories = session.query(Category).all()
+    return jsonify(Categories=[r.serialize for r in categories])
+
+
+# --------------------------------------
+# CRUD for categories
+# --------------------------------------
 # READ - home page, show latest items and categories
 @app.route('/')
 @app.route('/categories/')
@@ -235,6 +271,7 @@ def showLogin():
         random.choice(
             string.ascii_uppercase + string.digits) for x in xrange(32))
     login_session['state'] = state
+    print ("showing login page")
     return render_template('login_user.html', STATE=state)
 
 
@@ -242,49 +279,144 @@ def showLogin():
 # Disconnect based on provider
 @app.route('/disconnect')
 def disconnect():
-    return g_connect.disconnect()
+    print login_session
+    if 'provider' in login_session:
+        if login_session['provider'] == 'google':
+            gdisconnect()
+            if 'gplus_id' in login_session:
+                del login_session['gplus_id']
+            if 'credentials' in login_session:
+                del login_session['credentials']
+        if login_session['provider'] == 'facebook':
+            fbdisconnect()
+            del login_session['facebook_id']
+        if 'username' in login_session:
+            del login_session['username']
+        if 'email' in login_session:
+            del login_session['email']
+        if 'picture' in login_session:
+            del login_session['picture']
+        if 'user_id' in login_session:
+            del login_session['user_id']
+        del login_session['provider']
+        flash("You have successfully been logged out.", 'success')
+        return redirect(url_for('showCatalog'))
+    else:
+        flash("You were not logged in", 'danger')
+        return redirect(url_for('showCatalog'))
+
 
 # DISCONNECT - Revoke a current user's token and reset their login_session
 @app.route('/gdisconnect')
 def gdisconnect():
-    return g_connect.gdisconnect()
+    # only disconnect a connected user
+    credentials = login_session.get('credentials')
+    if credentials is None:
+        response = make_response(
+            json.dumps('Current user not connected.'), 401)
+        response.headers['Content-type'] = 'application/json'
+        return response
+    # execute HTTP GET request to revoke current token
+    access_token = credentials.access_token
+    url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token  # noqa
+    h = httplib2.Http()
+    result = h.request(url, 'GET')[0]
+
+    if result['status'] == '200':
+        # reset the user's session
+        del login_session['credentials']
+        del login_session['gplus_id']
+        del login_session['username']
+        del login_session['email']
+        del login_session['picture']
+
+        response = make_response(json.dumps('Successfully disconnected.'), 200)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+
+    else:
+        # token given is invalid
+        response = make_response(
+            json.dumps('Failed to revoke token for given user.'), 400)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+
+
+
 
 
 
 @app.route('/login/<provider>', methods=['POST'])
+
 def login_process(provider):
     if provider == 'google':
         token = request.data
-        return g_connect.authorize_google(token)
+        return authorize_google(token)
     return abort(404)
 
 
 
-# --------------------------------------
-# JSON APIs to show Catalog information
-# --------------------------------------
-@app.route('/api/v1/catalog.json')
-def showCatalogJSON():
-    """Returns JSON of all items in catalog"""
-    items = session.query(CatalogItem).order_by(CatalogItem.id.desc())
-    return jsonify(CatalogItems=[i.serialize for i in items])
+
+#for the new google auth process. 
+def authorize_google(auth_code):
+    """authorize google sign in"""
+    try:
+        # Upgrade the authorization code into a credentials object
+        oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
+        oauth_flow.redirect_uri = 'postmessage'
+        credentials = oauth_flow.step2_exchange(auth_code)
+    except FlowExchangeError as ex:
+        response = make_response(
+            json.dumps('Failed to upgrade the authorization code.'), 401)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    # Check that the access token is valid.
+    access_token = credentials.access_token
+
+    url = (
+        'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=%s' %
+        access_token)
+    h = httplib2.Http()
+    result = json.loads(h.request(url, 'GET')[1])
 
 
-@app.route(
-    '/api/v1/categories/<int:category_id>/item/<int:catalog_item_id>/JSON')
-def catalogItemJSON(category_id, catalog_item_id):
-    """Returns JSON of selected item in catalog"""
-    Catalog_Item = session.query(
-        CatalogItem).filter_by(id=catalog_item_id).one()
-    return jsonify(Catalog_Item=Catalog_Item.serialize)
+
+    # If there was an error in the access token info, abort.
+    if result.get('error') is not None:
+        response = make_response(json.dumps(result.get('error')), 500)
+        response.headers['Content-Type'] = 'application/json'
+        return response
 
 
-@app.route('/api/v1/categories/JSON')
-def categoriesJSON():
-    """Returns JSON of all categories in catalog"""
-    categories = session.query(Category).all()
-    return jsonify(Categories=[r.serialize for r in categories])
+    h = httplib2.Http()
+    userinfo_url = "https://www.googleapis.com/oauth2/v1/userinfo"
+    params = {'access_token': credentials.access_token, 'alt': 'json'}
+    answer = requests.get(userinfo_url, params=params)
+    data = answer.json()
+    name = data['name']
+    picture = data['picture']
+    print (picture)
+    email = data['email']
 
+
+
+    # see if user exists, if it doesn't make a new one
+    session = DBSession()
+    user = session.query(User).filter_by(email=email).first()
+    if not user:
+        user = User(username=name, picture=picture, email=email)
+        session.add(user)
+        session.commit()
+    session.close()
+
+
+    login_session['email'] = user.email
+    login_session['username'] = user.username
+    login_session['user_id'] = user.id
+    login_session['provider'] = 'google' 
+    flash("you are now logged in as %s" % login_session['username'], 'success')
+
+    return make_response('success', 200)
 
 
 

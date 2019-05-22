@@ -23,6 +23,7 @@ class Populate_database:
         {
             'username': 'Abhijeet Bhorkar',
             'email': 'abhijeet.bhorkar@gmail.com',
+            'picture':'https://lh6.googleusercontent.com/-Nk2JadNaxDE/AAAAAAAAAAI/AAAAAAAAH-w/uQ18O3CGdfc/s96-c/photo.jpg'
         }
     ]
 
@@ -31,7 +32,8 @@ class Populate_database:
 	    for u in self.users:
 		    self.session.add(User(
 			username=u['username'],
-			email=u['email']
+			email=u['email'],
+                        picture=u['picture']
 		    ))
 	    self.session.commit()
 	    user_genesis = self.session.query(User).filter_by(email='abhijeet.bhorkar@gmail.com').one()
