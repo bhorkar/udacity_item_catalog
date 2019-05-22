@@ -1,0 +1,61 @@
+{% extends "main.html" %}
+
+{% block extraload %}
+<!--LOAD PRE-REQUISITES FOR GOOGLE SIGN IN -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+<script src="https://apis.google.com/js/client:platform.js?onload=start" async defer>
+</script>
+
+<script>
+    function start() {
+    gapi.load('auth2', function() {
+      auth2 = gapi.auth2.init({
+        client_id: '838617141466-pgaq4eladg9n0m3n4pvoodu8f62987t0.apps.googleusercontent.com',
+        // Scopes to request in addition to 'profile' and 'email'
+        //scope: 'additional_scope'
+      });
+    });
+    }
+</script>
+<!-- END PRE-REQUISITES FOR GOOGLE SIGN IN -->
+{% endblock %}
+
+{% block content %}
+<div id="result"></div>
+<button  class="g-signin2" id="signinButton">Sign in with Google</button>
+<!-- Add where you want your sign-in button to render -->
+<!-- Use an image that follows the branding guidelines in a real app -->
+<script>
+  $('#signinButton').click(function() {
+    auth2.grantOfflineAccess().then(signInCallback);
+  });
+</script>
+
+<!--END NEW GOOGLE BUTTON -->
+
+
+
+<!--NEW GOOGLE SIGN IN CODE -->
+<script>
+function signInCallback(json) {
+  authResult = json;
+  console.log('User logged in1.'); 	  
+  if (authResult['code']) {
+    console.log('User logged in.'); 	  
+    $.ajax({
+      type: 'POST',
+      url: '/login/google',
+      processData: false,
+      data: authResult['code'],
+      contentType: 'application/octet-stream; charset=utf-8',
+      success: function(response) {
+      		window.location.href = "/categories/";
+	    }
+    });
+  }
+}
+</script>
+
+
+
+{% endblock %}
