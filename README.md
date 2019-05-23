@@ -30,5 +30,8 @@ We are building a sports catalog
 #### Returns JSON of a specific category and an item 
 `/api/v1/categories/<int:category_id>/item/<int:catalog_item_id>/JSON'
 
-
+### Acknowlegements
+Following code was used as a starting point for the work where a book shelf catalog was developed. 
+'https://github.com/br3ndonland/udacity-fsnd-flask-catalog'
+Perform changes to include new google sign-on method 
 
