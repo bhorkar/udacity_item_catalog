@@ -57,7 +57,6 @@ def showCatalog():
 def newCategory():
     """Allows user to create new category"""
     if request.method == 'POST':
-        print login_session
         if 'user_id' not in login_session and 'email' in login_session:
             login_session['user_id'] = getUserID(login_session['email'])
         newCategory = Category(
@@ -178,8 +177,6 @@ def editCatalogItem(category_id, catalog_item_id):
     if editedItem.user_id != login_session['user_id']:
         return "<script>function myFunction() {alert('You are not authorized!')}</script><body onload='myFunction()'>"  # noqa
     if request.method == 'POST':
-        print (request.form)
-        print (editedItem)
         if request.form['name']:
             editedItem.name = request.form['name']
         if request.form['description']:
@@ -256,17 +253,11 @@ def disconnect():
 
 
 def disconnect():
-    print login_session
     if 'provider' in login_session:
         if login_session['provider'] == 'google':
             gdisconnect()
-            if 'gplus_id' in login_session:
-                del login_session['gplus_id']
             if 'credentials' in login_session:
                 del login_session['credentials']
-        if login_session['provider'] == 'facebook':
-            fbdisconnect()
-            del login_session['facebook_id']
         if 'username' in login_session:
             del login_session['username']
         if 'email' in login_session:
