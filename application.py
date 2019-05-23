@@ -13,15 +13,14 @@ import httplib2
 import json
 from flask import make_response
 import requests
-from glogin import Google_connect 
+from glogin import Google_connect
 import database_interaction
 
 app = Flask(__name__)
 
 
-#g_connect = Google_connect(login_session)
 db = database_interaction.Database_interaction()
-session = db.session 
+session = db.session
 
 
 # Login required decorator
@@ -113,9 +112,6 @@ def deleteCategory(category_id):
             'delete_category.html', category=categoryToDelete)
 
 
-# --------------------------------------
-# CRUD for category items
-# --------------------------------------
 # READ - show category items
 @app.route('/categories/<int:category_id>/')
 @app.route('/categories/<int:category_id>/items/')
@@ -188,9 +184,9 @@ def editCatalogItem(category_id, catalog_item_id):
             editedItem.name = request.form['name']
         if request.form['description']:
             editedItem.description = request.form['description']
-        if request.form['category']:
-            editedItem.category = request.form['category']
-            print request.form['category']
+        # if request.form['category']:
+         #   editedItem.category = request.form['category']
+         #   print request.form['category']
         session.add(editedItem)
         session.commit()
         flash("Catalog item updated!", 'success')
@@ -238,11 +234,13 @@ def showLogin():
     return render_template('login_user.html', STATE=state)
 
 # User helper functions
+
+
 def getUserID(email):
     try:
         user = session.query(User).filter_by(email=email).one()
         return user.id
-    except:
+    except BaseException:
         return None
 
 
@@ -255,6 +253,7 @@ def getUserInfo(user_id):
 @app.route('/disconnect')
 def disconnect():
     return disconnect()
+
 
 def disconnect():
     print login_session
@@ -284,8 +283,6 @@ def disconnect():
         return redirect(url_for('showCatalog'))
 
 
-
-
 # DISCONNECT - Revoke a current user's token and reset their login_session
 @app.route('/gdisconnect')
 def gdisconnect():
@@ -294,37 +291,36 @@ def gdisconnect():
 
 def gdisconnect():
         # only disconnect a connected user
-        credentials = login_session.get('credentials')
-        if credentials is None:
-            response = make_response(
-                json.dumps('Current user not connected.'), 401)
-            response.headers['Content-type'] = 'application/json'
-            return response
-        # execute HTTP GET request to revoke current token
-        access_token = credentials.access_token
-        url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token  # noqa
-        h = httplib2.Http()
-        result = h.request(url, 'GET')[0]
+    credentials = login_session.get('credentials')
+    if credentials is None:
+        response = make_response(
+            json.dumps('Current user not connected.'), 401)
+        response.headers['Content-type'] = 'application/json'
+        return response
+    # execute HTTP GET request to revoke current token
+    access_token = credentials.access_token
+    url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token  # noqa
+    h = httplib2.Http()
+    result = h.request(url, 'GET')[0]
 
-        if result['status'] == '200':
-            # reset the user's session
-            del login_session['credentials']
-            del login_session['gplus_id']
-            del login_session['username']
-            del login_session['email']
-            del login_session['picture']
+    if result['status'] == '200':
+        # reset the user's session
+        del login_session['credentials']
+        del login_session['gplus_id']
+        del login_session['username']
+        del login_session['email']
+        del login_session['picture']
 
-            response = make_response(json.dumps('Successfully disconnected.'), 200)
-            response.headers['Content-Type'] = 'application/json'
-            return response
+        response = make_response(json.dumps('Successfully disconnected.'), 200)
+        response.headers['Content-Type'] = 'application/json'
+        return response
 
-        else:
-            # token given is invalid
-            response = make_response(
-                json.dumps('Failed to revoke token for given user.'), 400)
-            response.headers['Content-Type'] = 'application/json'
-            return response
-
+    else:
+        # token given is invalid
+        response = make_response(
+            json.dumps('Failed to revoke token for given user.'), 400)
+        response.headers['Content-Type'] = 'application/json'
+        return response
 
 
 @app.route('/login/<provider>', methods=['POST'])
@@ -336,60 +332,58 @@ def login_process(provider):
 
 
 def authorize_google(auth_code):
-
-     """authorize google sign in"""
-     try:
+    """authorize google sign in"""
+    try:
          # Upgrade the authorization code into a credentials object
-         oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
-         oauth_flow.redirect_uri = 'postmessage'
-         credentials = oauth_flow.step2_exchange(auth_code)
-     except FlowExchangeError as ex:
-         response = make_response(
-             json.dumps('Failed to upgrade the authorization code.'), 401)
-         response.headers['Content-Type'] = 'application/json'
-         return response
+        oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
+        oauth_flow.redirect_uri = 'postmessage'
+        credentials = oauth_flow.step2_exchange(auth_code)
+    except FlowExchangeError as ex:
+        response = make_response(
+            json.dumps('Failed to upgrade the authorization code.'), 401)
+        response.headers['Content-Type'] = 'application/json'
+        return response
 
-     # Check that the access token is valid.
-     access_token = credentials.access_token
-     url = (
-         'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=%s' %
-         access_token)
-     h = httplib2.Http()
-     result = json.loads(h.request(url, 'GET')[1])
+    # Check that the access token is valid.
+    access_token = credentials.access_token
+    url = (
+        'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=%s' %
+        access_token)
+    h = httplib2.Http()
+    result = json.loads(h.request(url, 'GET')[1])
 
-     # If there was an error in the access token info, abort.
-     if result.get('error') is not None:
-         response = make_response(json.dumps(result.get('error')), 500)
-         response.headers['Content-Type'] = 'application/json'
-         return response
+    # If there was an error in the access token info, abort.
+    if result.get('error') is not None:
+        response = make_response(json.dumps(result.get('error')), 500)
+        response.headers['Content-Type'] = 'application/json'
+        return response
 
-     h = httplib2.Http()
-     userinfo_url = "https://www.googleapis.com/oauth2/v1/userinfo"
-     params = {'access_token': credentials.access_token, 'alt': 'json'}
-     answer = requests.get(userinfo_url, params=params)
+    h = httplib2.Http()
+    userinfo_url = "https://www.googleapis.com/oauth2/v1/userinfo"
+    params = {'access_token': credentials.access_token, 'alt': 'json'}
+    answer = requests.get(userinfo_url, params=params)
 
-     data = answer.json()
+    data = answer.json()
 
-     name = data['name']
-     picture = data['picture']
-     email = data['email']
+    name = data['name']
+    picture = data['picture']
+    email = data['email']
 
-     # see if user exists, if it doesn't make a new one
+    # see if user exists, if it doesn't make a new one
 
-     user = session.query(User).filter_by(email=email).first()
-     if not user:
-         user = User(username=name, picture=picture, email=email)
-         session.add(user)
-         session.commit()
+    user = session.query(User).filter_by(email=email).first()
+    if not user:
+        user = User(username=name, picture=picture, email=email)
+        session.add(user)
+        session.commit()
 
-     login_session['email'] = user.email
-     login_session['username'] = user.username
-     login_session['user_id'] = user.id
-     login_session['provider'] = 'google' 
-     login_session['picture'] = picture
+    login_session['email'] = user.email
+    login_session['username'] = user.username
+    login_session['user_id'] = user.id
+    login_session['provider'] = 'google'
+    login_session['picture'] = picture
 
-
-     return make_response('success', 200)
+    return make_response('success', 200)
 
 
 # --------------------------------------
@@ -416,9 +410,6 @@ def categoriesJSON():
     """Returns JSON of all categories in catalog"""
     categories = session.query(Category).all()
     return jsonify(Categories=[r.serialize for r in categories])
-
-
-
 
 
 if __name__ == '__main__':
