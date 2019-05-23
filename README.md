@@ -4,27 +4,31 @@ We are building a sports catalog
 ## Key Functionality
   - Google Authentication
   - Easy to add, update, create, delete information.
+  - - Users can edit and delete items only created by them
   - Easily accessible data with JSON Endpoints
+![Screenshot](./public_html.png)
+![Screenshot](./edit_item.png)
 
 
 ### Prerequisites
   - Python 2.7
-  -requirements.txt
+  - requirements.txt
 
 ### How to Run
 - Clone this repository.
-- Open your vagrant machine and change directory into this folder
-- Run the python code catalog.py using the following command
-` python3 catalog.py`
-- Open your browser and go to this url http://localhost:8000
+- Initialize the database using 
+` python populate_database.py`
+- Run the application using the following command
+` python application.py`
+- Open your browser and go to this url http://localhost:5000
 
 ## JSON endpoints
-#### Returns JSON of all Categories
-`/bookstore/JSON/`
-#### Returns JSON of all books in specific category
-`/bookstore/<int:c_id>/JSON/`
-#### Returns JSON of a given book
-`/bookstore/<int:c_id>/vbook/<int:b_id>/JSON/`
+#### Returns JSON of all items in all catalogs
+`/api/v1/catalog/JSON`
+#### Returns JSON for all categories
+`/api/v1/categories/JSON`
+#### Returns JSON of a specific category and an item 
+`/api/v1/categories/<int:category_id>/item/<int:catalog_item_id>/JSON'
 
-https://github.com/br3ndonland/udacity-fsnd-flask-catalog/blob/master/info/flask-catalog-methods.md#google
+
 
