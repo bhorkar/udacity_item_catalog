@@ -33,5 +33,6 @@ We are building a sports catalog
 ### Acknowlegements
 Following code was used as a starting point for the work where a book shelf catalog was developed. 
 'https://github.com/br3ndonland/udacity-fsnd-flask-catalog'
-Perform changes to include new google sign-on method 
+
+Include changes for the new google sign-on method 
 
